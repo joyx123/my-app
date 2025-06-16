@@ -7,7 +7,6 @@ export default function ToDoList({ token }) {
   const [newTask, setNewTask] = useState("");
   const [error, setError] = useState("");
 
-  // Fetch tasks on mount
   useEffect(() => {
     fetchTasks();
   }, []);
@@ -15,12 +14,12 @@ export default function ToDoList({ token }) {
   async function fetchTasks() {
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/tasks`, {
+      const res = await fetch(`${API_BASE}/api/todos`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch tasks");
       const data = await res.json();
-      setTasks(data.tasks || []);
+      setTasks(data || []);
     } catch (err) {
       setError(err.message);
     }
@@ -32,7 +31,7 @@ export default function ToDoList({ token }) {
     setError("");
 
     try {
-      const res = await fetch(`${API_BASE}/tasks`, {
+      const res = await fetch(`${API_BASE}/api/todos`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -51,7 +50,7 @@ export default function ToDoList({ token }) {
   async function deleteTask(id) {
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/tasks/${id}`, {
+      const res = await fetch(`${API_BASE}/api/todos/${id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
