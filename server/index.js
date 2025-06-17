@@ -3,51 +3,9 @@ const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const sqlite3 = require("sqlite3").verbose();
-const fs = require("fs");
-const path = require("path");
-const { exec } = require("child_process");
 
 const app = express();
 const SECRET_KEY = "your_secret_key";
-
-// Paths to JSON logs
-const logsFilePath = path.join(__dirname, "data", "logs.json");
-const accountsFilePath = path.join(__dirname, "data", "accounts.json");
-
-// Helper: Append log and auto-push to Git
-function appendLog(filePath, entry) {
-  fs.readFile(filePath, (err, data) => {
-    let json = [];
-    if (!err && data.length > 0) {
-      try {
-        json = JSON.parse(data);
-      } catch (e) {
-        console.error("Failed to parse JSON:", e);
-      }
-    }
-
-    json.push(entry);
-
-    fs.writeFile(filePath, JSON.stringify(json, null, 2), (err) => {
-      if (err) {
-        console.error("Error writing log:", err);
-      } else {
-        autoGitPush(`Update ${path.basename(filePath)}`);
-      }
-    });
-  });
-}
-
-// Helper: Auto git commit and push
-function autoGitPush(message = "Auto-update JSON logs") {
-  exec(`git add data/*.json && git commit -m "${message}" && git push`, (err, stdout, stderr) => {
-    if (err) {
-      console.error("Git push failed:", stderr);
-    } else {
-      console.log("Git push successful:\n", stdout);
-    }
-  });
-}
 
 app.use(cors());
 app.use(express.json());
@@ -111,13 +69,6 @@ app.post("/register", (req, res) => {
         [username, hash],
         function (err) {
           if (err) return res.status(500).json({ error: "Database insert error" });
-
-          appendLog(accountsFilePath, {
-            id: this.lastID,
-            username,
-            created_at: new Date().toISOString()
-          });
-
           res.json({ message: "User registered successfully" });
         }
       );
@@ -160,14 +111,6 @@ app.post("/api/todos", authenticateToken, (req, res) => {
 
   db.run("INSERT INTO todos (user_id, task) VALUES (?, ?)", [req.user.id, task], function (err) {
     if (err) return res.status(500).json({ error: err.message });
-
-    appendLog(logsFilePath, {
-      user_id: req.user.id,
-      action: "created",
-      task,
-      timestamp: new Date().toISOString()
-    });
-
     res.status(201).json({ id: this.lastID, task, completed: 0 });
   });
 });
@@ -183,15 +126,6 @@ app.put("/api/todos/:id", authenticateToken, (req, res) => {
 
     db.run("UPDATE todos SET task = ?, completed = ? WHERE id = ?", [task || row.task, completed ? 1 : 0, id], function (err) {
       if (err) return res.status(500).json({ error: err.message });
-
-      appendLog(logsFilePath, {
-        user_id: req.user.id,
-        action: "updated",
-        task: task || row.task,
-        completed: !!completed,
-        timestamp: new Date().toISOString()
-      });
-
       res.json({ updatedID: id });
     });
   });
@@ -207,14 +141,6 @@ app.delete("/api/todos/:id", authenticateToken, (req, res) => {
 
     db.run("DELETE FROM todos WHERE id = ?", id, function (err) {
       if (err) return res.status(500).json({ error: err.message });
-
-      appendLog(logsFilePath, {
-        user_id: req.user.id,
-        action: "deleted",
-        task: row.task,
-        timestamp: new Date().toISOString()
-      });
-
       res.json({ deletedID: id });
     });
   });
